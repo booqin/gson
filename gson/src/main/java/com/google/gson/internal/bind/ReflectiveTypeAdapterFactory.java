@@ -99,6 +99,7 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     }
 
     ObjectConstructor<T> constructor = constructorConstructor.get(type);
+    //获取成员变量
     return new Adapter<T>(constructor, getBoundFields(gson, type, raw));
   }
 
