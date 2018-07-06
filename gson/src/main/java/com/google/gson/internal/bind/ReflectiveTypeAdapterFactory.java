@@ -72,11 +72,12 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
   /** first element holds the default name */
   private List<String> getFieldNames(Field f) {
     SerializedName annotation = f.getAnnotation(SerializedName.class);
+    //1.不存在注解，使用反射获取到成员变量名f.getName()
     if (annotation == null) {
       String name = fieldNamingPolicy.translateName(f);
       return Collections.singletonList(name);
     }
-
+    //获取注解的value和替换名alternate(只有在json映射到bean的时候生效)
     String serializedName = annotation.value();
     String[] alternates = annotation.alternate();
     if (alternates.length == 0) {
@@ -115,6 +116,7 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
           constructorConstructor, context, fieldType, annotation);
     }
     final boolean jsonAdapterPresent = mapped != null;
+    //获取处理Field的适配器
     if (mapped == null) mapped = context.getAdapter(fieldType);
 
     final TypeAdapter<?> typeAdapter = mapped;
@@ -150,10 +152,10 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
 
     Type declaredType = type.getType();
     while (raw != Object.class) {
-      Field[] fields = raw.getDeclaredFields();
-      for (Field field : fields) {
-        boolean serialize = excludeField(field, true);
-        boolean deserialize = excludeField(field, false);
+      Field[] fields = raw.getDeclaredFields(); //获取内部的属性，非继承
+      for (Field field : fields) { //获取到的内部属性遍历，添加到result中
+        boolean serialize = excludeField(field, true); //序列化
+        boolean deserialize = excludeField(field, false); //反序列化
         if (!serialize && !deserialize) {
           continue;
         }
@@ -180,10 +182,13 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
     return result;
   }
 
+  /**
+   * BoundField 保存了属性名，
+   */
   static abstract class BoundField {
-    final String name;
-    final boolean serialized;
-    final boolean deserialized;
+    final String name;  //变量名
+    final boolean serialized; // 可序列化，在toJson中（writer）会进行判断
+    final boolean deserialized; //反序列化，在fromeJson中（Read）判断
 
     protected BoundField(String name, boolean serialized, boolean deserialized) {
       this.name = name;
@@ -209,12 +214,13 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
         in.nextNull();
         return null;
       }
-
+      //创建实例对象
       T instance = constructor.construct();
 
       try {
         in.beginObject();
         while (in.hasNext()) {
+          //获取field名
           String name = in.nextName();
           BoundField field = boundFields.get(name);
           if (field == null || !field.deserialized) {
@@ -232,24 +238,33 @@ public final class ReflectiveTypeAdapterFactory implements TypeAdapterFactory {
       return instance;
     }
 
-    @Override public void write(JsonWriter out, T value) throws IOException {
+    /**
+     * 读取所有的BoundField，拼接成字符串，递归的思想
+     * @param out
+     * @param value the Java object to write. May be null.
+     * @throws IOException
+     */
+    @Override
+    public void write(JsonWriter out, T value) throws IOException {
       if (value == null) {
         out.nullValue();
         return;
       }
 
-      out.beginObject();
+      out.beginObject();  // "{"
       try {
         for (BoundField boundField : boundFields.values()) {
           if (boundField.writeField(value)) {
+            //json 键名
             out.name(boundField.name);
+            //json 值
             boundField.write(out, value);
           }
         }
       } catch (IllegalAccessException e) {
         throw new AssertionError(e);
       }
-      out.endObject();
+      out.endObject(); // "}"
     }
   }
 }

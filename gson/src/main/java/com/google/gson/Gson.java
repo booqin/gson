@@ -218,6 +218,8 @@ public final class Gson {
     this.builderFactories = builderFactories;
     this.builderHierarchyFactories = builderHierarchyFactories;
 
+    //工厂模式，工厂列表，当获取到的对象进行解析时，会根据数据进行获取，直到得到对应的Adapter
+    //ReflectiveTypeAdapterFactory在底部，比如传入一个Bean时
     List<TypeAdapterFactory> factories = new ArrayList<TypeAdapterFactory>();
 
     // built-in type adapters that cannot be overridden
@@ -425,7 +427,7 @@ public final class Gson {
 
   /**
    * Returns the type adapter for {@code} type.
-   *
+   * 根据typeToken获取adapter，方法内部实现缓存优化，factory.create获取对应不为null的Adapter
    * @throws IllegalArgumentException if this GSON cannot serialize and
    *     deserialize {@code type}.
    */
@@ -435,7 +437,7 @@ public final class Gson {
     if (cached != null) {
       return (TypeAdapter<T>) cached;
     }
-
+    //FutureTypeAdapter代理
     Map<TypeToken<?>, FutureTypeAdapter<?>> threadCalls = calls.get();
     boolean requiresThreadLocalCleanup = false;
     if (threadCalls == null) {
@@ -687,6 +689,9 @@ public final class Gson {
   }
 
   /**
+   * 转换为Json字符串
+   * 1.获取适配器
+   * 2.执行对应的writer操作
    * Writes the JSON representation of {@code src} of type {@code typeOfSrc} to
    * {@code writer}.
    * @throws JsonIOException if there was a problem writing to the writer
